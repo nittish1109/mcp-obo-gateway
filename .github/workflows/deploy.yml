@@ -1,4 +1,4 @@
-name: Build and Deploy MCP Gateway
+﻿name: Build and Deploy MCP Gateway
 
 on:
   push:
