@@ -24,6 +24,20 @@ from app.auth import AuthError, TokenValidator
 from app.config import Settings
 from app.obo import OboError, OboExchanger
 from app.proxy import SessionGuard, forward, to_client_response
+def _enrich_tools_with_ontology_instruction(tools_list: list) -> list:
+    """Injects mandatory ontology pre-flight instructions into ExecuteQuery."""
+    for tool in tools_list:
+        if tool.get("name") == "ExecuteQuery":
+            base_desc = tool.get("description", "Executes a DAX query against a Microsoft Fabric semantic model.")
+            tool["description"] = (
+                f"{base_desc} "
+                "MANDATORY PRE-REQUISITE: You MUST call 'GetSemanticModelSchema' before calling this tool. "
+                "Inspect all returned measures, linguistic synonyms, and author instructions. "
+                "Map user natural-language concepts to certified measures and predefined synonyms. "
+                "Never generate ad-hoc column aggregations (such as SUM, AVERAGE) if a certified measure exists."
+            )
+    return tools_list
+
 from app.catalog import DISCOVERY_TOOLS, list_user_workspaces, search_datasets
 
 log = logging.getLogger("mcp_obo_gateway")
