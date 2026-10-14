@@ -1,8 +1,10 @@
 ﻿import os
 import httpx
+from pathlib import Path
 from typing import List, Dict, Any
 
 PBI_API_BASE = "https://api.powerbi.com/v1.0/myorg"
+LOCAL_ONTOLOGY_PATH = Path(__file__).parent / "Meriton_Master_Ontology.md"
 DEFAULT_ONTOLOGY_URL = (
     "https://onelake.dfs.fabric.microsoft.com/"
     "1f7ebbe2-855b-4923-a413-6cc027fa7a1a/"
@@ -14,9 +16,10 @@ DISCOVERY_TOOLS = [
     {
         "name": "get_master_ontology",
         "description": (
-            "MANDATORY FIRST STEP: Retrieves the Enterprise Master Business Ontology markdown from OneLake. "
-            "Call this tool first to resolve certified business definitions (Committed Spend, Invoiced Spend, "
-            "Exception Rates), matching hierarchies, and natural language synonyms across Meriton operations."
+            "MANDATORY FIRST STEP: Retrieves the Enterprise Master Business Ontology markdown. "
+            "Call this tool before inspecting schemas or generating DAX queries to understand certified "
+            "business definitions (Committed Spend, Invoiced Spend, Exception Rates), matching hierarchies, "
+            "and natural language synonyms across Meriton operations."
         ),
         "inputSchema": {
             "type": "object",
@@ -53,7 +56,13 @@ DISCOVERY_TOOLS = [
     }
 ]
 
-async def fetch_master_ontology(token: str) -> str:
+async def fetch_master_ontology(token: str | None = None) -> str:
+    """Returns the Master Ontology markdown. Reads from local bundled file or OneLake."""
+    # 1. Primary: Read bundled ontology file inside the container
+    if LOCAL_ONTOLOGY_PATH.exists():
+        return LOCAL_ONTOLOGY_PATH.read_text(encoding="utf-8")
+
+    # 2. Fallback: Query OneLake DFS if local file is missing
     url = os.environ.get("ONELAKE_ONTOLOGY_URL", DEFAULT_ONTOLOGY_URL)
     headers = {
         "Authorization": f"Bearer {token}",

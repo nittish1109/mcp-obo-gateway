@@ -157,12 +157,7 @@ def create_app(settings: Settings, validator: TokenValidator | None = None,
                     tool_args = params.get("arguments", {})
 
                     if tool_name == "get_master_ontology":
-                        try:
-                            # Try storage scope exchange; fallback to obo_token
-                            storage_token = await obo.exchange(user, resource="https://storage.azure.com")
-                        except Exception:
-                            storage_token = obo_token
-                        ontology_text = await fetch_master_ontology(storage_token)
+                        ontology_text = await fetch_master_ontology(obo_token)
                         return _format_sse_response({
                             "jsonrpc": "2.0",
                             "id": rpc_id,
@@ -240,5 +235,6 @@ def build() -> Starlette:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
     return create_app(Settings.from_env())
+
 
 
