@@ -14,9 +14,9 @@ DISCOVERY_TOOLS = [
     {
         "name": "get_master_ontology",
         "description": (
-            "MANDATORY FIRST STEP: Retrieves the Enterprise Master Business Ontology markdown directly from OneLake. "
-            "Call this tool before inspecting schemas or generating DAX queries to resolve certified business definitions "
-            "(Committed Spend, Invoiced Spend, Exception Rates), matching hierarchies, and natural language synonyms."
+            "MANDATORY FIRST STEP: Retrieves the Enterprise Master Business Ontology markdown from OneLake. "
+            "Call this tool first to resolve certified business definitions (Committed Spend, Invoiced Spend, "
+            "Exception Rates), matching hierarchies, and natural language synonyms across Meriton operations."
         ),
         "inputSchema": {
             "type": "object",
@@ -54,20 +54,19 @@ DISCOVERY_TOOLS = [
 ]
 
 async def fetch_master_ontology(token: str) -> str:
-    """Fetches the Master Ontology file directly from OneLake using the caller's delegated token."""
     url = os.environ.get("ONELAKE_ONTOLOGY_URL", DEFAULT_ONTOLOGY_URL)
     headers = {
         "Authorization": f"Bearer {token}",
         "x-ms-version": "2020-10-02"
     }
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(url, headers=headers)
             if resp.status_code == 200:
                 return resp.text
-            return f"Error fetching ontology from OneLake [HTTP {resp.status_code}]: {resp.text}"
+            return f"Notice: Could not fetch remote ontology from OneLake (HTTP {resp.status_code})."
     except Exception as exc:
-        return f"Exception fetching ontology from OneLake: {str(exc)}"
+        return f"Notice: Could not reach OneLake DFS ({str(exc)})."
 
 async def list_user_workspaces(token: str) -> List[Dict[str, Any]]:
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
