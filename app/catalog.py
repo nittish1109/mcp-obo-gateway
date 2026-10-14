@@ -1,9 +1,28 @@
-﻿import httpx
+﻿import os
+import httpx
 from typing import List, Dict, Any
 
 PBI_API_BASE = "https://api.powerbi.com/v1.0/myorg"
+DEFAULT_ONTOLOGY_URL = (
+    "https://onelake.dfs.fabric.microsoft.com/"
+    "1f7ebbe2-855b-4923-a413-6cc027fa7a1a/"
+    "38629310-d3cd-4f45-83d1-ec40bdf59c53/"
+    "Files/ontology/Meriton_Master_Ontology.md"
+)
 
 DISCOVERY_TOOLS = [
+    {
+        "name": "get_master_ontology",
+        "description": (
+            "MANDATORY FIRST STEP: Retrieves the Enterprise Master Business Ontology markdown directly from OneLake. "
+            "Call this tool before inspecting schemas or generating DAX queries to resolve certified business definitions "
+            "(Committed Spend, Invoiced Spend, Exception Rates), matching hierarchies, and natural language synonyms."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
     {
         "name": "list_workspaces",
         "description": "Lists all Power BI / Fabric workspaces accessible to the user.",
@@ -14,7 +33,10 @@ DISCOVERY_TOOLS = [
     },
     {
         "name": "search_semantic_models",
-        "description": "Searches for semantic models (datasets) across accessible workspaces. Returns dataset names, dataset IDs (GUIDs), and workspace details so they can be inspected with GetSemanticModelSchema and queried with ExecuteQuery.",
+        "description": (
+            "Searches for semantic models (datasets) across accessible workspaces. Returns dataset names, dataset IDs (GUIDs), "
+            "and workspace details so they can be inspected with GetSemanticModelSchema and queried with ExecuteQuery."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -30,6 +52,22 @@ DISCOVERY_TOOLS = [
         }
     }
 ]
+
+async def fetch_master_ontology(token: str) -> str:
+    """Fetches the Master Ontology file directly from OneLake using the caller's delegated token."""
+    url = os.environ.get("ONELAKE_ONTOLOGY_URL", DEFAULT_ONTOLOGY_URL)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "x-ms-version": "2020-10-02"
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                return resp.text
+            return f"Error fetching ontology from OneLake [HTTP {resp.status_code}]: {resp.text}"
+    except Exception as exc:
+        return f"Exception fetching ontology from OneLake: {str(exc)}"
 
 async def list_user_workspaces(token: str) -> List[Dict[str, Any]]:
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
@@ -49,7 +87,7 @@ async def list_user_workspaces(token: str) -> List[Dict[str, Any]]:
 async def search_datasets(token: str, workspace_name: str | None = None, model_name: str | None = None) -> List[Dict[str, Any]]:
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
     workspaces = await list_user_workspaces(token)
-    
+
     if workspace_name:
         workspaces = [w for w in workspaces if isinstance(w, dict) and workspace_name.lower() in w.get("name", "").lower()]
 

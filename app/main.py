@@ -31,14 +31,14 @@ def _enrich_tools_with_ontology_instruction(tools_list: list) -> list:
             base_desc = tool.get("description", "Executes a DAX query against a Microsoft Fabric semantic model.")
             tool["description"] = (
                 f"{base_desc} "
-                "MANDATORY PRE-REQUISITE: You MUST call 'GetSemanticModelSchema' before calling this tool. "
+                "MANDATORY PRE-REQUISITE: You MUST first call 'get_master_ontology' to resolve business terms and metrics, and call 'GetSemanticModelSchema' before issuing any DAX queries. "
                 "Inspect all returned measures, linguistic synonyms, and author instructions. "
                 "Map user natural-language concepts to certified measures and predefined synonyms. "
                 "Never generate ad-hoc column aggregations (such as SUM, AVERAGE) if a certified measure exists."
             )
     return tools_list
 
-from app.catalog import DISCOVERY_TOOLS, list_user_workspaces, search_datasets
+from app.catalog import DISCOVERY_TOOLS, fetch_master_ontology, list_user_workspaces, search_datasets
 
 log = logging.getLogger("mcp_obo_gateway")
 
@@ -156,7 +156,17 @@ def create_app(settings: Settings, validator: TokenValidator | None = None,
                     tool_name = params.get("name")
                     tool_args = params.get("arguments", {})
 
-                    if tool_name == "list_workspaces":
+                    if tool_name == "get_master_ontology":
+                        ontology_text = await fetch_master_ontology(obo_token)
+                        return _format_sse_response({
+                            "jsonrpc": "2.0",
+                            "id": rpc_id,
+                            "result": {
+                                "content": [{"type": "text", "text": ontology_text}]
+                            }
+                        })
+
+                    elif tool_name == "list_workspaces":
                         workspaces = await list_user_workspaces(obo_token)
                         return _format_sse_response({
                             "jsonrpc": "2.0",
@@ -225,3 +235,4 @@ def build() -> Starlette:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
     return create_app(Settings.from_env())
+
